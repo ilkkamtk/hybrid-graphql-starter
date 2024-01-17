@@ -24,7 +24,7 @@ const app = express();
     app.use(notFound);
     app.use(errorHandler);
   } catch (error) {
-    console.log(error);
+    console.error((error as Error).message);
   }
 })();
 
