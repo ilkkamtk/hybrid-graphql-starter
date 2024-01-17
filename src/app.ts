@@ -14,7 +14,7 @@ const app = express();
         contentSecurityPolicy: false,
       }),
     );
-
+    app.use(cors());
     app.use(notFound);
     app.use(errorHandler);
   } catch (error) {
