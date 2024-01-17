@@ -19,7 +19,7 @@ const fetchAllMedia = async (): Promise<MediaItem[] | null> => {
       CONCAT(?, filename) AS filename,
       CONCAT(?, CONCAT(filename, "-thumb.png")) AS thumbnail
       FROM MediaItems`,
-      [uploadPath, uploadPath]
+      [uploadPath, uploadPath],
     );
     if (rows.length === 0) {
       return null;
@@ -31,8 +31,31 @@ const fetchAllMedia = async (): Promise<MediaItem[] | null> => {
   }
 };
 
+// Request a list of media items by tag
+const fetchMediaByTag = async (tag: string): Promise<MediaItem[] | null> => {
+  try {
+    const [rows] = await promisePool.execute<RowDataPacket[] & MediaItem[]>(
+      `SELECT MediaItems.*,
+      CONCAT(?, MediaItems.filename) AS filename,
+      CONCAT(?, CONCAT(MediaItems.filename, "-thumb.png")) AS thumbnail
+      FROM MediaItems
+      JOIN MediaItemTags ON MediaItems.media_id = MediaItemTags.media_id
+      JOIN Tags ON MediaItemTags.tag_id = Tags.tag_id
+      WHERE Tags.tag_name = ?`,
+      [process.env.UPLOAD_URL, process.env.UPLOAD_URL, tag],
+    );
+    if (rows.length === 0) {
+      return null;
+    }
+    return rows;
+  } catch (e) {
+    console.error('fetchMediaByTag error', (e as Error).message);
+    throw new Error((e as Error).message);
+  }
+};
+
 const fetchAllMediaByAppId = async (
-  id: string
+  id: string,
 ): Promise<MediaItem[] | null> => {
   const uploadPath = process.env.UPLOAD_URL;
   try {
@@ -42,7 +65,7 @@ const fetchAllMediaByAppId = async (
       CONCAT(?, CONCAT(filename, "-thumb.png")) AS thumbnail
       FROM MediaItems
       WHERE app_id = ?`,
-      [uploadPath, uploadPath, id]
+      [uploadPath, uploadPath, id],
     );
     if (rows.length === 0) {
       return null;
@@ -74,7 +97,7 @@ const fetchMediaById = async (id: number): Promise<MediaItem | null> => {
     const params = [uploadPath, uploadPath, id];
     const [rows] = await promisePool.execute<RowDataPacket[] & MediaItem[]>(
       sql,
-      params
+      params,
     );
     if (rows.length === 0) {
       return null;
@@ -94,7 +117,7 @@ const fetchMediaById = async (id: number): Promise<MediaItem | null> => {
  * @throws {Error} - error if database query fails
  */
 const postMedia = async (
-  media: Omit<MediaItem, 'media_id' | 'created_at'>
+  media: Omit<MediaItem, 'media_id' | 'created_at'>,
 ): Promise<MediaItem | null> => {
   const {user_id, filename, filesize, media_type, title, description, app_id} =
     media;
@@ -114,7 +137,7 @@ const postMedia = async (
     console.log('result', result);
     const [rows] = await promisePool.execute<RowDataPacket[] & MediaItem[]>(
       'SELECT * FROM MediaItems WHERE media_id = ?',
-      [result[0].insertId]
+      [result[0].insertId],
     );
     if (rows.length === 0) {
       return null;
@@ -137,7 +160,7 @@ const postMedia = async (
 
 const putMedia = async (
   media: Pick<MediaItem, 'title' | 'description'>,
-  id: number
+  id: number,
 ) => {
   try {
     const sql = promisePool.format('UPDATE MediaItems SET ? WHERE ?', [
@@ -164,7 +187,7 @@ const putMedia = async (
 const deleteMedia = async (
   id: number,
   user: TokenContent,
-  token: string
+  token: string,
 ): Promise<MessageResponse> => {
   console.log('deleteMedia', id);
   const media = await fetchMediaById(id);
@@ -182,7 +205,7 @@ const deleteMedia = async (
   // remove environment variable UPLOAD_URL from filename
   media.filename = media?.filename.replace(
     process.env.UPLOAD_URL as string,
-    ''
+    '',
   );
 
   console.log(token);
@@ -201,7 +224,7 @@ const deleteMedia = async (
     // ! user_id in SQL so that only the owner of the media item can delete it
     const [result] = await connection.execute<ResultSetHeader>(
       'DELETE FROM MediaItems WHERE media_id = ? and user_id = ?;',
-      [id, user.user_id]
+      [id, user.user_id],
     );
 
     if (result.affectedRows === 0) {
@@ -218,7 +241,7 @@ const deleteMedia = async (
 
     const deleteResult = await fetchData<MessageResponse>(
       `${process.env.UPLOAD_SERVER}/delete/${media.filename}`,
-      options
+      options,
     );
 
     console.log('deleteResult', deleteResult);
@@ -249,7 +272,7 @@ const deleteMedia = async (
 const fetchMostLikedMedia = async (): Promise<MediaItem | undefined> => {
   try {
     const [rows] = await promisePool.execute<RowDataPacket[] & MediaItem[]>(
-      'SELECT * FROM `MostLikedMedia`'
+      'SELECT * FROM `MostLikedMedia`',
     );
     if (rows.length === 0) {
       return undefined;
@@ -272,7 +295,7 @@ const fetchMostLikedMedia = async (): Promise<MediaItem | undefined> => {
 const fetchMostCommentedMedia = async (): Promise<MediaItem | undefined> => {
   try {
     const [rows] = await promisePool.execute<RowDataPacket[] & MediaItem[]>(
-      'SELECT * FROM `MostCommentedMedia`'
+      'SELECT * FROM `MostCommentedMedia`',
     );
     if (rows.length === 0) {
       return undefined;
@@ -295,7 +318,7 @@ const fetchMostCommentedMedia = async (): Promise<MediaItem | undefined> => {
 const fetchHighestRatedMedia = async (): Promise<MediaItem | undefined> => {
   try {
     const [rows] = await promisePool.execute<RowDataPacket[] & MediaItem[]>(
-      'SELECT * FROM `HighestRatedMedia`'
+      'SELECT * FROM `HighestRatedMedia`',
     );
     if (rows.length === 0) {
       return undefined;
@@ -312,6 +335,7 @@ const fetchHighestRatedMedia = async (): Promise<MediaItem | undefined> => {
 export {
   fetchAllMedia,
   fetchAllMediaByAppId,
+  fetchMediaByTag,
   fetchMediaById,
   postMedia,
   deleteMedia,
