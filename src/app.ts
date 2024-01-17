@@ -1,8 +1,9 @@
 require('dotenv').config();
-import express from 'express';
+import express, {Request, Response} from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import {notFound, errorHandler} from './middlewares';
+import {MessageResponse} from '@sharedTypes/MessageTypes';
 
 const app = express();
 
@@ -16,8 +17,8 @@ const app = express();
     );
     app.use(cors());
 
-    app.get('/', (req, res) => {
-      res.send('Server running');
+    app.get('/', (_req: Request, res: Response<MessageResponse>) => {
+      res.send({message: 'Server is running'});
     });
 
     app.use(notFound);
