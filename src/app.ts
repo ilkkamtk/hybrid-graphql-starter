@@ -15,6 +15,11 @@ const app = express();
       }),
     );
     app.use(cors());
+
+    app.get('/', (req, res) => {
+      res.send('Server running');
+    });
+
     app.use(notFound);
     app.use(errorHandler);
   } catch (error) {

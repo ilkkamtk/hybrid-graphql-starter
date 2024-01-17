@@ -1,6 +1,8 @@
-/** @type {import('ts-jest/dist/types').InitialOptionsTsJest} */
-module.exports = {
+/** @type {import('jest').Config} */
+const config = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   modulePathIgnorePatterns: ['<rootDir>/dist/'],
 };
+
+module.exports = config;
