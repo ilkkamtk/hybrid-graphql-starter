@@ -64,18 +64,24 @@ const deleteTag = async (id: number): Promise<MessageResponse | null> => {
   const connection = await promisePool.getConnection();
   try {
     await connection.beginTransaction();
-    const [tagResult] = await connection.execute<ResultSetHeader>(
-      'DELETE FROM Tags WHERE tag_id = ?',
-      [id],
-    );
-    if (tagResult.affectedRows === 0) {
-      return null;
-    }
 
     const [mediaItemTagResult] = await connection.execute<ResultSetHeader>(
       'DELETE FROM MediaItemTags WHERE tag_id = ?',
       [id],
     );
+
+    if (mediaItemTagResult.affectedRows === 0) {
+      return null;
+    }
+
+    const [tagResult] = await connection.execute<ResultSetHeader>(
+      'DELETE FROM Tags WHERE tag_id = ?',
+      [id],
+    );
+
+    if (tagResult.affectedRows === 0) {
+      return null;
+    }
 
     await connection.commit();
 

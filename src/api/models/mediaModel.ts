@@ -2,7 +2,7 @@ import {ResultSetHeader, RowDataPacket} from 'mysql2';
 import {MediaItem, TokenContent} from '@sharedTypes/DBTypes';
 import promisePool from '../../lib/db';
 import {fetchData} from '../../lib/functions';
-import {MessageResponse} from '@sharedTypes/MessageTypes';
+import {MediaResponse, MessageResponse} from '@sharedTypes/MessageTypes';
 
 /**
  * Get all media items from the database
@@ -152,15 +152,23 @@ const postMedia = async (
 const putMedia = async (
   media: Pick<MediaItem, 'title' | 'description'>,
   id: number,
-) => {
+): Promise<MediaResponse | null> => {
   try {
-    const sql = promisePool.format('UPDATE MediaItems SET ? WHERE ?', [
-      media,
-      id,
-    ]);
+    const sql = promisePool.format(
+      'UPDATE MediaItems SET ? WHERE media_id = ?',
+      [media, id],
+    );
     const result = await promisePool.execute<ResultSetHeader>(sql);
     console.log('result', result);
-    return {media_id: result[0].insertId};
+    if (result[0].affectedRows === 0) {
+      return null;
+    }
+
+    const mediaItem = await fetchMediaById(id);
+    if (!mediaItem) {
+      return null;
+    }
+    return {message: 'Media updated', media: mediaItem};
   } catch (e) {
     console.error('error', (e as Error).message);
     throw new Error((e as Error).message);
