@@ -119,19 +119,10 @@ const fetchMediaById = async (id: number): Promise<MediaItem | null> => {
 const postMedia = async (
   media: Omit<MediaItem, 'media_id' | 'created_at' | 'thumbnail'>,
 ): Promise<MediaItem | null> => {
-  const {user_id, filename, filesize, media_type, title, description, app_id} =
-    media;
-  const sql = `INSERT INTO MediaItems (user_id, filename, filesize, media_type, title, description, app_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?)`;
-  const params = [
-    user_id,
-    filename,
-    filesize,
-    media_type,
-    title,
-    description,
-    app_id,
-  ];
+  const {user_id, filename, filesize, media_type, title, description} = media;
+  const sql = `INSERT INTO MediaItems (user_id, filename, filesize, media_type, title, description)
+               VALUES (?, ?, ?, ?, ?, ?)`;
+  const params = [user_id, filename, filesize, media_type, title, description];
   try {
     const result = await promisePool.execute<ResultSetHeader>(sql, params);
     console.log('result', result);
@@ -332,6 +323,48 @@ const fetchHighestRatedMedia = async (): Promise<MediaItem | undefined> => {
   }
 };
 
+// Attach a tag to a media item
+const postTagToMedia = async (
+  tag_name: string,
+  media_id: number,
+): Promise<MediaItem | null> => {
+  try {
+    let tag_id: number = 0;
+    // check if tag exists (case insensitive)
+    const [tagResult] = await promisePool.execute<RowDataPacket[]>(
+      'SELECT * FROM Tags WHERE tag_name = ?',
+      [tag_name],
+    );
+    if (tagResult.length === 0) {
+      // if tag does not exist create it
+      const [insertResult] = await promisePool.execute<ResultSetHeader>(
+        'INSERT INTO Tags (tag_name) VALUES (?)',
+        [tag_name],
+      );
+      // get tag_id from created tag
+      if (insertResult.affectedRows === 0) {
+        return null;
+      }
+      tag_id = insertResult.insertId;
+    } else {
+      // if tag exists get tag_id from the first result
+      tag_id = tagResult[0].tag_id;
+    }
+    const [MediaItemTagsResult] = await promisePool.execute<ResultSetHeader>(
+      'INSERT INTO MediaItemTags (tag_id, media_id) VALUES (?, ?)',
+      [tag_id, media_id],
+    );
+    if (MediaItemTagsResult.affectedRows === 0) {
+      return null;
+    }
+
+    return await fetchMediaById(media_id);
+  } catch (e) {
+    console.error('postTagToMedia error', (e as Error).message);
+    throw new Error((e as Error).message);
+  }
+};
+
 export {
   fetchAllMedia,
   fetchAllMediaByAppId,
@@ -343,4 +376,5 @@ export {
   fetchMostCommentedMedia,
   fetchHighestRatedMedia,
   putMedia,
+  postTagToMedia,
 };
